@@ -31,11 +31,12 @@ If there are syntax errors ``TemplateError`` will be raised.
 
 import re
 import sys
-import cgi
-from urllib import quote as url_quote
+from html import escape as cgi_escape
+from urllib.parse import quote as url_quote
 import os
 import tokenize
-from cStringIO import StringIO
+from io import StringIO
+import six
 from tempita._looper import looper
 from tempita.compat3 import PY3, bytes, basestring_, next, is_unicode, coerce_text
 
@@ -102,7 +103,7 @@ class Template(object):
                           self.default_namespace['end_braces'])
         else:
             assert len(delimeters) == 2 and all(
-                [isinstance(delimeter, basestring)
+                [isinstance(delimeter, six.string_types)
                     for delimeter in delimeters])
             self.default_namespace = self.__class__.default_namespace.copy()
             self.default_namespace['start_braces'] = delimeters[0]
@@ -200,7 +201,7 @@ class Template(object):
                 position=None, name=self.name)
         templ = self.get_template(inherit_template, self)
         self_ = TemplateObject(self.name)
-        for name, value in defs.iteritems():
+        for name, value in six.iteritems(defs):
             setattr(self_, name, value)
         self_.body = body
         ns = ns.copy()
@@ -308,7 +309,7 @@ class Template(object):
             else:
                 arg0 = coerce_text(e)
             e.args = (self._add_line_info(arg0, pos),)
-            raise (exc_info[1], e, exc_info[2])
+            six.reraise(exc_info[1], e, exc_info[2])
 
     def _exec(self, code, ns, pos):
         # __traceback_hide__ = True
@@ -321,7 +322,7 @@ class Template(object):
                 e.args = (self._add_line_info(e.args[0], pos),)
             else:
                 e.args = (self._add_line_info(None, pos),)
-            raise(exc_info[1], e, exc_info[2])
+            six.reraise(exc_info[1], e, exc_info[2])
 
     def _repr(self, value, pos):
         # __traceback_hide__ = True
@@ -330,7 +331,7 @@ class Template(object):
                 return ''
             if self._unicode:
                 try:
-                    value = unicode(value)
+                    value = six.text_type(value)
                 except UnicodeDecodeError:
                     value = bytes(value)
             else:
@@ -342,7 +343,7 @@ class Template(object):
             exc_info = sys.exc_info()
             e = exc_info[1]
             e.args = (self._add_line_info(e.args[0], pos),)
-            raise(exc_info[1], e, exc_info[2])
+            six.reraise(exc_info[1], e, exc_info[2])
         else:
             if self._unicode and isinstance(value, bytes):
                 if not self.default_encoding:
@@ -388,7 +389,7 @@ def paste_script_template_renderer(content, vars, filename=None):
 class bunch(dict):
 
     def __init__(self, **kw):
-        for name, value in kw.iteritems():
+        for name, value in six.iteritems(kw):
             setattr(self, name, value)
 
     def __setattr__(self, name, value):
@@ -411,7 +412,7 @@ class bunch(dict):
 
     def __repr__(self):
         items = [
-            (k, v) for k, v in self.iteritems()]
+            (k, v) for k, v in six.iteritems(self)]
         items.sort()
         return '<%s %s>' % (
             self.__class__.__name__,
@@ -446,10 +447,10 @@ def html_quote(value, force=True):
     if not isinstance(value, basestring_):
         value = coerce_text(value)
     if sys.version >= "3" and isinstance(value, bytes):
-        value = cgi.escape(value.decode('latin1'), 1)
+        value = cgi_escape(value.decode('latin1'), 1)
         value = value.encode('latin1')
     else:
-        value = cgi.escape(value, 1)
+        value = cgi_escape(value, 1)
     if sys.version < "3":
         if is_unicode(value):
             value = value.encode('ascii', 'xmlcharrefreplace')
@@ -464,7 +465,7 @@ def url(v):
 
 
 def attr(**kw):
-    kw = list(kw.iteritems())
+    kw = list(six.iteritems(kw))
     kw.sort()
     parts = []
     for name, value in kw:
@@ -545,7 +546,7 @@ class TemplateDef(object):
         values = {}
         sig_args, var_args, var_kw, defaults = self._func_signature
         extra_kw = {}
-        for name, value in kw.iteritems():
+        for name, value in six.iteritems(kw):
             if not var_kw and name not in sig_args:
                 raise TypeError(
                     'Unexpected argument %s' % name)
@@ -568,7 +569,7 @@ class TemplateDef(object):
                 raise TypeError(
                     'Extra position arguments: %s'
                     % ', '.join(repr(v) for v in args))
-        for name, value_expr in defaults.iteritems():
+        for name, value_expr in six.iteritems(defaults):
             if name not in values:
                 values[name] = self._template._eval(
                     value_expr, self._ns, self._pos)
@@ -685,15 +686,15 @@ Lex a string into chunks:
     >>> lex('hey {{')
     Traceback (most recent call last):
         ...
-    tempita.TemplateError: No }} to finish last expression at line 1 column 7
+    tempita.__init__.TemplateError: No }} to finish last expression at line 1 column 7
     >>> lex('hey }}')
     Traceback (most recent call last):
         ...
-    tempita.TemplateError: }} outside expression at line 1 column 7
+    tempita.__init__.TemplateError: }} outside expression at line 1 column 7
     >>> lex('hey {{ {{')
     Traceback (most recent call last):
         ...
-    tempita.TemplateError: {{ inside expression at line 1 column 10
+    tempita.__init__.TemplateError: {{ inside expression at line 1 column 10
 
 """ if PY3 else """
 Lex a string into chunks:
@@ -845,31 +846,31 @@ parse.__doc__ = r"""
         >>> parse('{{continue}}')
         Traceback (most recent call last):
             ...
-        tempita.TemplateError: continue outside of for loop at line 1 column 3
+        tempita.__init__.TemplateError: continue outside of for loop at line 1 column 3
         >>> parse('{{if x}}foo')
         Traceback (most recent call last):
             ...
-        tempita.TemplateError: No {{endif}} at line 1 column 3
+        tempita.__init__.TemplateError: No {{endif}} at line 1 column 3
         >>> parse('{{else}}')
         Traceback (most recent call last):
             ...
-        tempita.TemplateError: else outside of an if block at line 1 column 3
+        tempita.__init__.TemplateError: else outside of an if block at line 1 column 3
         >>> parse('{{if x}}{{for x in y}}{{endif}}{{endfor}}')
         Traceback (most recent call last):
             ...
-        tempita.TemplateError: Unexpected endif at line 1 column 25
+        tempita.__init__.TemplateError: Unexpected endif at line 1 column 25
         >>> parse('{{if}}{{endif}}')
         Traceback (most recent call last):
             ...
-        tempita.TemplateError: if with no expression at line 1 column 3
+        tempita.__init__.TemplateError: if with no expression at line 1 column 3
         >>> parse('{{for x y}}{{endfor}}')
         Traceback (most recent call last):
             ...
-        tempita.TemplateError: Bad for (no "in") in 'x y' at line 1 column 3
+        tempita.__init__.TemplateError: Bad for (no "in") in 'x y' at line 1 column 3
         >>> parse('{{py:x=1\ny=2}}')  #doctest: +NORMALIZE_WHITESPACE
         Traceback (most recent call last):
             ...
-        tempita.TemplateError: Multi-line py blocks must start
+        tempita.__init__.TemplateError: Multi-line py blocks must start
             with a newline at line 1 column 3
     """ if PY3 else r"""
     Parses a string into a kind of AST

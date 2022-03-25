@@ -50,7 +50,6 @@ def setup_python3():
 kwargs = {}
 if sys.version_info[0] >= 3:
     from setuptools import setup
-    kwargs['use_2to3'] = True
     kwargs['src_root'] = setup_python3()
     assert setup
 else:
@@ -91,8 +90,9 @@ more to learn about it.
       url='http://pythonpaste.org/tempita/',
       license='MIT',
       packages=['tempita'],
-      tests_require=['nose'],
-      test_suite='nose.collector',
+      tests_require=['nose2'],
+      requires=['six'],
+      test_suite='nose2.collector.collector',
       include_package_data=True,
       zip_safe=True,
       **kwargs

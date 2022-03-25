@@ -1,5 +1,7 @@
 import sys
 
+import six
+
 __all__ = ['PY3', 'b', 'basestring_', 'bytes', 'next', 'is_unicode']
 
 PY3 = True if sys.version_info[0] == 3 else False
@@ -39,7 +41,7 @@ def coerce_text(v):
         else:
             attr = '__str__'
         if hasattr(v, attr):
-            return unicode(v)
+            return six.text_type(v)
         else:
             return bytes(v)
     return v
